@@ -1,23 +1,54 @@
-FROM docker.io/archlinux/archlinux:latest
+FROM docker.io/alpine AS unpack
+
+# Version of the tar archive to download. Updated once per month.
+ENV VERSION="2026.01.01"
+
+# Temporary resolv.conf. We set --dns=none so that /etc/resolv.conf doesn't get mounted into the image.
+RUN echo -e 'nameserver 1.1.1.1' > /etc/resolv.conf
+
+RUN apk add \
+  zstd \
+  tar \
+  curl
+
+RUN curl -fLOJ --retry 3 https://fastly.mirror.pkgbuild.com/iso/$VERSION/archlinux-bootstrap-$VERSION-x86_64.tar.zst && \
+  curl -fLOJ --retry 3 https://archlinux.org/iso/$VERSION/sha256sums.txt
+
+RUN grep "archlinux-bootstrap-$VERSION-x86_64.tar.zst" sha256sums.txt > arch-bootstrap-sha256sum.txt && \
+  sha256sum -c arch-bootstrap-sha256sum.txt || exit 1
+
+RUN tar xf /archlinux-bootstrap-$VERSION-x86_64.tar.zst --numeric-owner
+
+# This is where the Arch Linux image actually gets built.
+FROM scratch
+COPY --from=unpack /root.x86_64/ /
+RUN ls /
+
+# Temporary resolv.conf. We set --dns=none so that /etc/resolv.conf doesn't get mounted into the image.
+RUN echo -e 'nameserver 1.1.1.1' > /etc/resolv.conf
+
+RUN touch /var/log/pacman.log
+RUN sed -i 's/^#Server/Server/' /etc/pacman.d/mirrorlist
 
 # Move everything from `/var` to `/usr/lib/sysimage` so behavior around pacman remains the same on `bootc usroverlay`'d systems
 RUN grep "= */var" /etc/pacman.conf | sed "/= *\/var/s/.*=// ; s/ //" | xargs -n1 sh -c 'mkdir -p "/usr/lib/sysimage/$(dirname $(echo $1 | sed "s@/var/@@"))" && mv -v "$1" "/usr/lib/sysimage/$(echo "$1" | sed "s@/var/@@")"' '' && \
     sed -i -e "/= *\/var/ s/^#//" -e "s@= */var@= /usr/lib/sysimage@g" -e "/DownloadUser/d" /etc/pacman.conf
 
-RUN pacman -Syu --noconfirm
+RUN pacman-key --init && \
+    pacman-key --populate && \
+    pacman -Syu --noconfirm
 
-RUN pacman -Sy --noconfirm base dracut linux linux-firmware ostree btrfs-progs e2fsprogs xfsprogs dosfstools skopeo dbus dbus-glib glib2 ostree shadow && pacman -S --clean --noconfirm
+# Install bootc from my repository (https://github.com/hecknt/arch-bootc-pkgs)
+RUN pacman-key --recv-key 5DE6BF3EBC86402E7A5C5D241FA48C960F9604CB --keyserver keyserver.ubuntu.com
+RUN pacman-key --lsign-key 5DE6BF3EBC86402E7A5C5D241FA48C960F9604CB
+RUN echo -e '[bootc]\nSigLevel = Required\nServer=https://github.com/hecknt/arch-bootc-pkgs/releases/download/$repo' >> /etc/pacman.conf
+
+RUN pacman -Sy --noconfirm --needed base dracut linux linux-firmware ostree btrfs-progs e2fsprogs xfsprogs dosfstools skopeo dbus dbus-glib glib2 ostree shadow bootc && pacman -S --clean --noconfirm
 
 # https://github.com/bootc-dev/bootc/issues/1801
-RUN --mount=type=tmpfs,dst=/tmp --mount=type=tmpfs,dst=/root \
-    pacman -S --noconfirm make git rust go-md2man && \
-    git clone "https://github.com/bootc-dev/bootc.git" /tmp/bootc && \
-    make -C /tmp/bootc bin install-all && \
-    printf "systemdsystemconfdir=/etc/systemd/system\nsystemdsystemunitdir=/usr/lib/systemd/system\n" | tee /usr/lib/dracut/dracut.conf.d/30-bootcrew-fix-bootc-module.conf && \
+RUN printf "systemdsystemconfdir=/etc/systemd/system\nsystemdsystemunitdir=/usr/lib/systemd/system\n" | tee /usr/lib/dracut/dracut.conf.d/30-bootcrew-fix-bootc-module.conf && \
     printf 'reproducible=yes\nhostonly=no\ncompress=zstd\nadd_dracutmodules+=" ostree bootc "' | tee "/usr/lib/dracut/dracut.conf.d/30-bootcrew-bootc-container-build.conf" && \
-    dracut --force "$(find /usr/lib/modules -maxdepth 1 -type d | grep -v -E "*.img" | tail -n 1)/initramfs.img" && \
-    pacman -Rns --noconfirm make git rust go-md2man && \
-    pacman -S --clean --noconfirm
+    dracut --force "$(find /usr/lib/modules -maxdepth 1 -type d | grep -v -E "*.img" | tail -n 1)/initramfs.img"
 
 # Necessary for general behavior expected by image-based systems
 RUN sed -i 's|^HOME=.*|HOME=/var/home|' "/etc/default/useradd" && \
@@ -31,8 +62,5 @@ RUN sed -i 's|^HOME=.*|HOME=/var/home|' "/etc/default/useradd" && \
 # Setup a temporary root passwd (changeme) for dev purposes
 # RUN pacman -S whois --noconfirm
 # RUN usermod -p "$(echo "changeme" | mkpasswd -s)" root
-
-# https://bootc-dev.github.io/bootc/bootc-images.html#standard-metadata-for-bootc-compatible-images
-LABEL containers.bootc 1
 
 RUN bootc container lint
