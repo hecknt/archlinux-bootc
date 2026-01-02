@@ -2,6 +2,7 @@ FROM docker.io/alpine AS unpack
 
 # Version of the tar archive to download. Updated once per month.
 ENV VERSION="2026.01.01"
+ENV SHASUM="9040b365657c9c8b209dbb2d17fab578ed14eee62e4f34f8eaa3458b190f44b3"
 
 # Temporary resolv.conf. We set --dns=none so that /etc/resolv.conf doesn't get mounted into the image.
 RUN echo -e 'nameserver 1.1.1.1' > /etc/resolv.conf
@@ -11,11 +12,11 @@ RUN apk add \
   tar \
   curl
 
-RUN curl -fLOJ --retry 3 https://fastly.mirror.pkgbuild.com/iso/$VERSION/archlinux-bootstrap-$VERSION-x86_64.tar.zst && \
-  curl -fLOJ --retry 3 https://archlinux.org/iso/$VERSION/sha256sums.txt
+RUN curl -fLOJ --retry 3 https://fastly.mirror.pkgbuild.com/iso/$VERSION/archlinux-bootstrap-$VERSION-x86_64.tar.zst
 
-RUN grep "archlinux-bootstrap-$VERSION-x86_64.tar.zst" sha256sums.txt > arch-bootstrap-sha256sum.txt && \
-  sha256sum -c arch-bootstrap-sha256sum.txt || exit 1
+RUN echo "$SHASUM archlinux-bootstrap-$VERSION-x86_64.tar.zst" > sha256sum.txt
+
+RUN sha256sum -c sha256sum.txt || exit 1
 
 RUN tar xf /archlinux-bootstrap-$VERSION-x86_64.tar.zst --numeric-owner
 
