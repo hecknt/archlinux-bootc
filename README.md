@@ -1,10 +1,17 @@
 # Arch Linux Bootc
 
-Reference [Arch Linux](https://archlinux.org/) container image preconfigured for [bootc](https://github.com/bootc-dev/bootc) usage.
+Reference [Arch Linux](https://archlinux.org/) container image preconfigured for [bootc](https://github.com/bootc-dev/bootc) usage, based off the work done by [bootcrew](https://github.com/bootcrew). It differentiates itself by using the Arch Linux bootstrap tarball instead of the docker image as its base.
 
-<img width="2335" height="1296" alt="image" src="https://github.com/user-attachments/assets/0a19ad09-fdb6-4b7f-96f0-28ae9df12889" />
+## Why not use the Arch Linux docker image as a base?
 
-<img width="2305" height="846" alt="image" src="https://github.com/user-attachments/assets/f496a2f4-0782-408c-b207-c7acdde2e5ac" />
+This image exists because I have a few issues with the [Arch Linux Docker Image](https://hub.docker.com/r/archlinux/archlinux) for use as a bootable OS. Here's a small list of things that are rather counter intuitive for a non-docker installation:
+
+- Disables extracts of a [lot of directories](https://gitlab.archlinux.org/archlinux/archlinux-docker/-/blob/master/pacman-conf.d-noextract.conf?ref_type=heads)
+- Disables the sandbox of pacman for docker purposes
+- Sets a user for downloads (why? I genuinely have no idea why they do this)
+- Enables the `NoProgressBar` option in pacman.conf, which as described, disables the progress bar
+
+For the reasons listed above, I have decided to build this image off of the Arch Linux bootstrap tarball. This is also listed as a [valid installation method](https://wiki.archlinux.org/title/Install_Arch_Linux_from_existing_Linux#Creating_a_chroot) on the [Arch Linux wiki](https://wiki.archlinux.org). The tarball is nothing more than a base Arch Linux system, which is perfect for our needs.
 
 ## Building
 
