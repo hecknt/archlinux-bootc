@@ -9,16 +9,13 @@ RUN echo -e 'nameserver 1.1.1.1' > /etc/resolv.conf
 
 RUN apk add \
   zstd \
-  tar \
+  libarchive-tools \
   curl
 
 RUN curl -fLOJ --retry 3 https://fastly.mirror.pkgbuild.com/iso/$VERSION/archlinux-bootstrap-$VERSION-x86_64.tar.zst
-
 RUN echo "$SHASUM archlinux-bootstrap-$VERSION-x86_64.tar.zst" > sha256sum.txt
-
 RUN sha256sum -c sha256sum.txt || exit 1
-
-RUN tar xf /archlinux-bootstrap-$VERSION-x86_64.tar.zst --numeric-owner
+RUN bsdtar -xf /archlinux-bootstrap-$VERSION-x86_64.tar.zst -p
 
 # This is where the Arch Linux image actually gets built.
 FROM scratch
