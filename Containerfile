@@ -20,7 +20,6 @@ RUN bsdtar -xf /archlinux-bootstrap-$VERSION-x86_64.tar.zst -p
 # This is where the Arch Linux image actually gets built.
 FROM scratch
 COPY --from=unpack /root.x86_64/ /
-RUN ls /
 
 # Temporary resolv.conf. We set --dns=none so that /etc/resolv.conf doesn't get mounted into the image.
 RUN echo -e 'nameserver 1.1.1.1' > /etc/resolv.conf
@@ -37,9 +36,9 @@ RUN pacman-key --init && \
     pacman -Syu --noconfirm
 
 # Install bootc from my repository (https://github.com/hecknt/arch-bootc-pkgs)
-RUN pacman-key --recv-key 5DE6BF3EBC86402E7A5C5D241FA48C960F9604CB --keyserver keyserver.ubuntu.com
-RUN pacman-key --lsign-key 5DE6BF3EBC86402E7A5C5D241FA48C960F9604CB
-RUN echo -e '[bootc]\nSigLevel = Required\nServer=https://github.com/hecknt/arch-bootc-pkgs/releases/download/$repo' >> /etc/pacman.conf
+RUN pacman-key --recv-key 5DE6BF3EBC86402E7A5C5D241FA48C960F9604CB --keyserver keyserver.ubuntu.com && \
+    pacman-key --lsign-key 5DE6BF3EBC86402E7A5C5D241FA48C960F9604CB && \
+    echo -e '[bootc]\nSigLevel = Required\nServer=https://github.com/hecknt/arch-bootc-pkgs/releases/download/$repo' >> /etc/pacman.conf
 
 RUN pacman -Sy --noconfirm --needed base dracut linux linux-firmware ostree btrfs-progs e2fsprogs xfsprogs dosfstools skopeo dbus dbus-glib glib2 ostree shadow bootc && pacman -S --clean --noconfirm
 
