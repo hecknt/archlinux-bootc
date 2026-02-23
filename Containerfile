@@ -1,8 +1,8 @@
 FROM docker.io/alpine AS unpack
 
 # Version of the tar archive to download. Updated once per month.
-ENV VERSION="2026.01.01"
-ENV SHASUM="9040b365657c9c8b209dbb2d17fab578ed14eee62e4f34f8eaa3458b190f44b3"
+ENV VERSION="2026.02.01"
+ENV SHASUM="5debe75527010999719815ca964b6f630eac525167c6ad00ba1f7aa510ba657a"
 
 # Temporary resolv.conf. We set --dns=none so that /etc/resolv.conf doesn't get mounted into the image.
 RUN echo -e 'nameserver 1.1.1.1' > /etc/resolv.conf
